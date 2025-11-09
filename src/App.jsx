@@ -2,6 +2,8 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import ProblemFocus from './components/ProblemFocus';
 import Features from './components/Features';
+import CTA from './components/CTA';
+import Footer from './components/Footer';
 
 function App() {
   return (
@@ -11,12 +13,9 @@ function App() {
         <Hero />
         <ProblemFocus />
         <Features />
+        <CTA />
       </main>
-      <footer className="border-t border-white/10 bg-black/60 py-8 text-center text-sm text-white/60">
-        <p>
-          Human + AI Co‑Creation • Built with React, Tailwind, and an interactive 3D scene.
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }
