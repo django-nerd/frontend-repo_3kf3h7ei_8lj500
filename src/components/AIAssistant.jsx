@@ -8,7 +8,7 @@ function extractKeywords(text) {
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
-      .filter((w) => w.length > 3 && !['with', 'that', 'this', 'from', 'have', 'about', 'into', 'your', 'their', 'there', 'which'].includes(w))
+      .filter((w) => w.length > 3 && !['with', 'that', 'this', 'from', 'have', 'about', 'into', 'your', 'their', 'there', 'which', 'and', 'the', 'for'].includes(w))
   ));
 }
 
@@ -47,6 +47,8 @@ function improveClarity(text) {
 export default function AIAssistant({ items, onInsert }) {
   const [mode, setMode] = useState('suggest');
   const [prompt, setPrompt] = useState('Build a landing section that showcases human + AI collaboration with clear CTAs.');
+  const [loading, setLoading] = useState(false);
+  const [useCloud, setUseCloud] = useState(true);
 
   const combinedText = useMemo(() => items.map((i) => i.text).join(' '), [items]);
 
@@ -75,6 +77,28 @@ export default function AIAssistant({ items, onInsert }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const callBackend = async () => {
+    const base = import.meta.env.VITE_BACKEND_URL || '';
+    const url = `${base}/api/generate`;
+    setLoading(true);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, mode, text: combinedText.slice(0, 1500) }),
+      });
+      if (!res.ok) throw new Error('Request failed');
+      const data = await res.json();
+      const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      list.forEach((s) => onInsert({ type: 'paragraph', text: s }));
+    } catch (e) {
+      // graceful fallback to local heuristics
+      suggestions.forEach((s) => onInsert({ type: 'paragraph', text: s }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <aside className="rounded-xl border border-white/10 bg-white/5 p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -82,35 +106,41 @@ export default function AIAssistant({ items, onInsert }) {
           <Sparkles className="h-3.5 w-3.5 text-purple-300" />
           <span>AI Sidekick</span>
         </div>
-        <div className="flex gap-1">
-          <button
-            className={`rounded-md px-2 py-1 text-xs ${mode === 'suggest' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
-            onClick={() => setMode('suggest')}
-            aria-label="Suggest"
-          >
-            <Lightbulb className="mr-1 inline h-3.5 w-3.5" />Suggest
-          </button>
-          <button
-            className={`rounded-md px-2 py-1 text-xs ${mode === 'outline' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
-            onClick={() => setMode('outline')}
-            aria-label="Outline"
-          >
-            <Wand2 className="mr-1 inline h-3.5 w-3.5" />Outline
-          </button>
-          <button
-            className={`rounded-md px-2 py-1 text-xs ${mode === 'tasks' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
-            onClick={() => setMode('tasks')}
-            aria-label="Tasks"
-          >
-            <ListTodo className="mr-1 inline h-3.5 w-3.5" />Tasks
-          </button>
-          <button
-            className={`rounded-md px-2 py-1 text-xs ${mode === 'clarify' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
-            onClick={() => setMode('clarify')}
-            aria-label="Clarify"
-          >
-            <Wand2 className="mr-1 inline h-3.5 w-3.5" />Clarify
-          </button>
+        <div className="flex items-center gap-2 text-xs text-white/70">
+          <label className="inline-flex items-center gap-2">
+            <input type="checkbox" className="accent-white" checked={useCloud} onChange={(e) => setUseCloud(e.target.checked)} />
+            Cloud AI
+          </label>
+          <div className="flex gap-1">
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${mode === 'suggest' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
+              onClick={() => setMode('suggest')}
+              aria-label="Suggest"
+            >
+              <Lightbulb className="mr-1 inline h-3.5 w-3.5" />Suggest
+            </button>
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${mode === 'outline' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
+              onClick={() => setMode('outline')}
+              aria-label="Outline"
+            >
+              <Wand2 className="mr-1 inline h-3.5 w-3.5" />Outline
+            </button>
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${mode === 'tasks' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
+              onClick={() => setMode('tasks')}
+              aria-label="Tasks"
+            >
+              <ListTodo className="mr-1 inline h-3.5 w-3.5" />Tasks
+            </button>
+            <button
+              className={`rounded-md px-2 py-1 text-xs ${mode === 'clarify' ? 'bg-white text-black' : 'border border-white/10 text-white/80'}`}
+              onClick={() => setMode('clarify')}
+              aria-label="Clarify"
+            >
+              <Wand2 className="mr-1 inline h-3.5 w-3.5" />Clarify
+            </button>
+          </div>
         </div>
       </div>
 
@@ -121,6 +151,16 @@ export default function AIAssistant({ items, onInsert }) {
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Describe the theme, audience, and goal"
       />
+
+      {useCloud ? (
+        <button
+          onClick={callBackend}
+          disabled={loading}
+          className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-black transition hover:bg-white/90 disabled:opacity-70"
+        >
+          <Sparkles className="h-4 w-4" /> {loading ? 'Thinking…' : 'Generate with AI'}
+        </button>
+      ) : null}
 
       <ul className="space-y-2">
         {suggestions.map((s, idx) => (
