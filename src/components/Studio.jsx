@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Sparkles, Plus, Trash2, Save, Download } from 'lucide-react';
+import { Sparkles, Plus, Trash2, Save, Download, Wand2, MessageSquare } from 'lucide-react';
+import AIAssistant from './AIAssistant';
+import IdeasLibrary from './IdeasLibrary';
 
 function PromptForm({ onGenerate, disabled }) {
   const [prompt, setPrompt] = useState('Build a landing page section with a bold headline and two CTAs.');
@@ -29,7 +31,7 @@ function PromptForm({ onGenerate, disabled }) {
   );
 }
 
-function CanvasCard({ item, onEdit, onRemove }) {
+function CanvasCard({ item, onEdit, onRemove, onTransform }) {
   const [text, setText] = useState(item.text);
   useEffect(() => setText(item.text), [item.text]);
 
@@ -41,14 +43,53 @@ function CanvasCard({ item, onEdit, onRemove }) {
         onChange={(e) => setText(e.target.value)}
         onBlur={() => onEdit({ ...item, text })}
       />
-      <div className="mt-3 flex items-center justify-between text-xs text-white/60">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-white/70">
         <span>Block • {item.type}</span>
-        <button onClick={() => onRemove(item.id)} className="hidden items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-white/70 transition hover:bg-white/5 group-hover:flex">
-          <Trash2 className="h-3.5 w-3.5" /> remove
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => onTransform(item, 'rewrite')} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 transition hover:bg-white/5">
+            <Wand2 className="h-3.5 w-3.5" /> Rewrite
+          </button>
+          <button onClick={() => onTransform(item, 'expand')} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 transition hover:bg-white/5">
+            <MessageSquare className="h-3.5 w-3.5" /> Expand
+          </button>
+          <button onClick={() => onTransform(item, 'critique')} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 transition hover:bg-white/5">
+            <Sparkles className="h-3.5 w-3.5" /> Critique
+          </button>
+          <button onClick={() => onRemove(item.id)} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 transition hover:bg-white/5">
+            <Trash2 className="h-3.5 w-3.5" /> Remove
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+function improveClarity(text) {
+  return text
+    .replace(/\b(really|very|actually|basically|simply)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .split('. ')
+    .map((s) => (s.length > 120 ? s.slice(0, 117) + '…' : s))
+    .join('. ')
+    .trim();
+}
+
+function expandText(text) {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const extra = ' Add a clear outcome, a user benefit, and how we measure success.';
+  return sentences
+    .map((s) => (s.length > 0 ? s.replace(/\.$/, '') + ':' + extra : s))
+    .join(' ');
+}
+
+function critiqueText(text) {
+  const checks = [
+    'Is the goal specific and testable?',
+    'Who is the audience and what do they gain?',
+    'Is there a metric to track success?',
+    'Is the language inclusive and clear?',
+  ];
+  return `Critique Checklist\n- ${checks.join('\n- ')}\nNotes: ${text.length > 160 ? text.slice(0, 160) + '…' : text}`;
 }
 
 export default function Studio() {
@@ -56,7 +97,7 @@ export default function Studio() {
     const saved = localStorage.getItem('studio_items');
     return saved ? JSON.parse(saved) : [
       { id: crypto.randomUUID(), type: 'heading', text: 'Human + AI: Co‑Creation Canvas' },
-      { id: crypto.randomUUID(), type: 'paragraph', text: 'Iterate with quick blocks. Edit text, rearrange, and export your idea.' }
+      { id: crypto.randomUUID(), type: 'paragraph', text: 'Iterate with quick blocks. Edit text, use AI transforms, and export your idea.' }
     ];
   });
 
@@ -67,7 +108,6 @@ export default function Studio() {
   }, [items]);
 
   const handleGenerate = (prompt) => {
-    // A lightweight mock of an AI suggestion: produce a new block from the prompt
     const suggestion = `Suggestion: ${prompt}`;
     setItems((prev) => [
       ...prev,
@@ -78,6 +118,16 @@ export default function Studio() {
   const addBlock = () => setItems((prev) => ([...prev, { id: crypto.randomUUID(), type: 'paragraph', text: 'New block…' }]));
   const removeBlock = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
   const editBlock = (updated) => setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+
+  const insertBlock = (data) => setItems((prev) => ([...prev, { id: crypto.randomUUID(), type: data.type || 'paragraph', text: data.text }]));
+
+  const onTransform = (item, action) => {
+    let next = item.text;
+    if (action === 'rewrite') next = improveClarity(item.text);
+    if (action === 'expand') next = expandText(item.text);
+    if (action === 'critique') next = critiqueText(item.text);
+    editBlock({ ...item, text: next });
+  };
 
   const exportText = () => {
     const content = items.map((i) => (i.type === 'heading' ? `# ${i.text}` : `- ${i.text}`)).join('\n');
@@ -104,7 +154,7 @@ export default function Studio() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Co‑Creation Studio</h1>
-            <p className="mt-1 text-white/70">Welcome{profile?.name ? `, ${profile.name}` : ''}! Sketch ideas, get quick suggestions, and export results.</p>
+            <p className="mt-1 text-white/70">Welcome{profile?.name ? `, ${profile.name}` : ''}! Sketch ideas, apply AI transforms, and export results.</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={addBlock} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/90 transition hover:bg-white/5">
@@ -119,12 +169,21 @@ export default function Studio() {
           </div>
         </div>
 
-        <PromptForm onGenerate={handleGenerate} />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <PromptForm onGenerate={handleGenerate} />
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => (
-            <CanvasCard key={item.id} item={item} onEdit={editBlock} onRemove={removeBlock} />
-          ))}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              {items.map((item) => (
+                <CanvasCard key={item.id} item={item} onEdit={editBlock} onRemove={removeBlock} onTransform={onTransform} />
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <AIAssistant items={items} onInsert={insertBlock} />
+            <IdeasLibrary onUse={(idea) => insertBlock({ type: 'paragraph', text: `${idea.title}: ${idea.desc}` })} />
+          </div>
         </div>
       </div>
     </section>

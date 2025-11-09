@@ -5,7 +5,7 @@ export default function Hero() {
   return (
     <section className="relative isolate min-h-[80vh]">
       <div className="absolute inset-0">
-        <Spline scene="https://prod.spline.design/AeAqaKLmGsS-FPBN/scene.splinecode" style={{ width: '100%', height: '100%' }} />
+        <Spline scene="https://prod.spline.design/4cHQr84zOGAHOehh/scene.splinecode" style={{ width: '100%', height: '100%' }} />
       </div>
 
       <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 py-28 sm:py-32 lg:flex-row lg:items-end lg:justify-between lg:py-40">
